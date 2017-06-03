@@ -5,6 +5,9 @@ use std::borrow::{Borrow, BorrowMut};
 #[cfg(feature = "serde")] use serde::ser::{Serialize, Serializer};
 #[cfg(feature = "serde")] use serde::de::{self, Deserialize, Deserializer, Visitor};
 #[cfg(all(test, feature = "serde"))] extern crate serde_cbor;
+#[cfg(feature = "cbor-serialize")] extern crate cbor;
+#[cfg(feature = "cbor-serialize")] extern crate rustc_serialize;
+#[cfg(feature = "cbor-serialize")] use rustc_serialize::{Decoder, Encoder, Decodable, Encodable};
 
 
 /**
@@ -205,6 +208,21 @@ impl<T> fmt::Debug for SecVec<T> where T: Sized + Copy {
 impl<T> fmt::Display for SecVec<T> where T: Sized + Copy {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         f.write_str("***SECRET***").map_err(|_| { fmt::Error })
+    }
+}
+
+#[cfg(feature = "cbor-serialize")]
+impl Decodable for SecVec<u8> {
+    fn decode<D: Decoder>(d: &mut D) -> Result<SecStr, D::Error> {
+        let cbor::CborBytes(content) = try!(cbor::CborBytes::decode(d));
+        Ok(SecVec::new(content))
+    }
+}
+
+#[cfg(feature = "cbor-serialize")]
+impl Encodable for SecVec<u8> {
+    fn encode<E: Encoder>(&self, e: &mut E) -> Result<(), E::Error> {
+        cbor::CborBytes(self.content.clone()).encode(e)
     }
 }
 
